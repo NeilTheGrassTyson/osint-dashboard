@@ -1,53 +1,66 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any, Optional
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_FILE = BASE_DIR / "events.db"
-SCHEMA_FILE = BASE_DIR / "db" / "schema.sql"
+DB_FILE = "events.db"
+SCHEMA_FILE = Path(__file__).parent / "schema.sql"
 
-def init_db() -> None:
-    # Initialize the SQLite database using schema.sql (idempotent)
-    DB_FILE.parent.mkdir(parents=True, exist_ok=True)
+def init_db():
+    # Initialize database with schema if it doesn't exist.
     conn = sqlite3.connect(DB_FILE)
-    try:
-        with conn:
-            schema = SCHEMA_FILE.read_text(encoding="utf-8")
-            conn.executescript(schema)
-    finally:
-        conn.close()
+    cur = conn.cursor()
 
-def insert_event(event: Dict[str, Any]) -> None:
-    # Insert one event into the database.
+    # Read and execute schema.sql
+    if Path(SCHEMA_FILE).exists():
+        with open(SCHEMA_FILE, "r", encoding="utf-8") as f:
+            cur.executescript(f.read())
+    else:
+        raise FileNotFoundError(f"{SCHEMA_FILE} not found.")
+
+    conn.commit()
+    conn.close()
+
+
+def insert_event(event: dict):
+
+    # Insert one event into the database
     conn = sqlite3.connect(DB_FILE)
-    try:
-        with conn:
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO events (title, link, published, summary, source)
-                VALUES (:title, :link, :published, :summary, :source)
-                """.strip(),
-                {
-                    "title": event.get("title", ""),
-                    "link": event.get("link", ""),
-                    "published": event.get("published", ""),
-                    "summary": event.get("summary", ""),
-                    "source": event.get("source", ""),
-                },
-            )
-    finally:
-        conn.close()
+    cur = conn.cursor()
 
+    cur.execute(
+        "SELECT COUNT(*) FROM events WHERE link = ?",
+        (event.get("link", ""),)
+    )
 
-def fetch_events(limit: int = 10) -> List[Dict[str, Optional[str]]]:
-    # Fetch latest N events from database, newest-first by row id.
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    try:
-        cur = conn.execute(
-            "SELECT id, title, link, published, summary, source FROM events ORDER BY id DESC LIMIT ?",
-            (limit,),
+    # Prevent duplicate entries based on link
+    if cur.fetchone()[0] == 0:
+        cur.execute(
+            """
+            INSERT INTO events (title, link, published, summary, source)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                event.get("title", ""),
+                event.get("link", ""),
+                event.get("published", ""),
+                event.get("summary", ""),
+                event.get("source", ""),
+            ),
         )
-        return [dict(row) for row in cur.fetchall()]
-    finally:
-        conn.close()
+
+    conn.commit()
+    conn.close()
+
+
+def fetch_events(limit=10):
+    # Fetch the latest N events from the database.
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id, title, link, published, summary, source FROM events ORDER BY id DESC LIMIT ?",
+        (limit,),
+    )
+    results = cur.fetchall()
+
+    conn.close()
+    return results

@@ -5,6 +5,12 @@ __pycache__/
 .env
 
 # App data
-events.db
-events.json
+*.db
 *.code-workspace
+.vscode/
+.idea/
+.DS_Store
+
+# Ignore local dev/test folders
+*.json
+learning/

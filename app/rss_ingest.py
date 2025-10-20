@@ -11,7 +11,7 @@ def fetch_rss(url: str):
     # Fetch and parse RSS/Atom feed from a given URL
     return feedparser.parse(url)
 
-def parse_items(feed) -> List[Dict]:
+def parse_items(feed, url) -> List[Dict]:
     # Extract relevant fields from RSS items and persist them.
     events = []
     source_title = feed.get('feed', {}).get('title', '') or urlparse(feed.get('href', '') or '').netloc
@@ -21,7 +21,7 @@ def parse_items(feed) -> List[Dict]:
             "link": entry.get("link", ""),
             "published": entry.get("published", "") or entry.get("updated", ""),
             "summary": entry.get("summary", "") or entry.get("description", ""),
-            "source": source_title,
+            "source": feed.feed.get("title", url)
         }
         events.append(event)
         insert_event(event)
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     all_events = []
     for url in args.feeds:
         feed = fetch_rss(url)
-        events = parse_items(feed)
+        events = parse_items(feed, url)
         all_events.extend(events[:3])  # keep a small sample for combined JSON
 
     if args.json:
