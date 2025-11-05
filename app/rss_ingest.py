@@ -123,6 +123,11 @@ except Exception:
     # Fallback: fixed -05:00 (EST) without DST, no external deps
     LOCAL_TZ = timezone(timedelta(hours=-5), name="EST")
 
+"""
+Count distinct keyword/phrase matches in text.
+@param text: input text to search
+@return: number of distinct keyword/phrase matches in text
+"""
 def _count_hits(text: str) -> int:
     # Count distinct keyword/phrase matches in text (case-insensitive).
     text = text.lower()
@@ -132,12 +137,21 @@ def _count_hits(text: str) -> int:
             hits += 1
     return hits
 
-
+"""
+Check if text matches any false positive patterns.
+@param text: input text to check
+@return: True if text matches any false positive patterns, else False
+"""
 def _is_false_positive(text: str) -> bool:
     # Check if text matches any false positive patterns.
     return any(pat.search(text) for pat in _FALSE_POSITIVE_PATTERNS)
 
-
+"""
+Determine if a feed entry is geopolitically relevant based on keyword hits and source.
+@param entry: feed entry to evaluate
+@param source_host: hostname of the feed source
+@return: True if entry is geopolitically relevant, else False
+"""
 def _is_geopolitics(entry, source_host: str) -> bool:
     # Threshold-only filter: require N keyword hits. Title hits get a small bonus to reduce false positives.
     title = entry.get("title") or ""
@@ -161,9 +175,19 @@ def _is_geopolitics(entry, source_host: str) -> bool:
 
     return score >= threshold
 
+"""
+Remove HTML tags from a string for Google News RSS feeds.
+@param s: input string with potential HTML tags
+@return: cleaned string with HTML tags removed
+"""
 def _clean_html(s: str) -> str:
     return _HTML_TAGS.sub("", s or "").strip()
 
+"""
+Parse datetime from feed entry using multiple possible fields.
+@param entry: feed entry to parse datetime from
+@return: parsed datetime object in UTC, or None if parsing fails
+"""
 def _parse_dt(entry) -> datetime | None:
     # Try RFC-822-like strings with timezone first
     for key in ("published", "updated", "dc:date", "date"):
@@ -184,12 +208,28 @@ def _parse_dt(entry) -> datetime | None:
                 pass
     return None
 
+"""
+Format datetime as ISO 8601 string in UTC with 'Z' suffix.
+@param dt: datetime object to format
+@return: ISO 8601 formatted string in UTC
+"""
 def _iso_utc(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
+"""
+Format datetime as ISO 8601 string in local timezone.
+@param dt: datetime object to format
+@return: ISO 8601 formatted string in local timezone
+"""
 def _iso_local(dt: datetime) -> str:
     return dt.astimezone(LOCAL_TZ).isoformat(timespec="seconds")
 
+"""
+Parse feed items into structured events, filtering for geopolitical relevance.
+@param feed: parsed feed object from feedparser
+@param url: source URL of the feed
+@return: list of structured event dictionaries
+"""
 def parse_items(feed, url) -> List[Dict]:
     events: List[Dict] = []
     seen = set()  # prevent duplicates across overlapping feeds
@@ -235,12 +275,20 @@ def parse_items(feed, url) -> List[Dict]:
 
     return events
 
-
+"""
+Fetch and parse RSS/Atom feed from a given URL.
+@param url: URL of the feed to fetch
+@return: parsed feed object from feedparser
+"""
 def fetch_rss(url: str):
     # Fetch and parse RSS/Atom feed from a given URL
     return feedparser.parse(url)
 
-
+"""
+Save parsed events to readable JSON file.
+@param events: list of event dictionaries to save
+@param filename: output JSON file path
+"""
 def save_to_json(events, filename: str = "events.json"):
     # Save parsed events to JSON file.
     Path(filename).write_text(
@@ -249,7 +297,7 @@ def save_to_json(events, filename: str = "events.json"):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="OSCENT: RSS Ingestor")
+    parser = argparse.ArgumentParser(description="OSCENT: Open Source Central Intelligence – RSS Ingestor")
     parser.add_argument(
         "feeds",
         nargs="*",

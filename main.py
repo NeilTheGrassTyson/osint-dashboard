@@ -1,7 +1,12 @@
 from db.db_utils import init_db
 from app.rss_ingest import fetch_rss, parse_items, save_to_json
 
+"""
+OSCENT: Open Source Central Intelligence
+Main entry point for initializing the database and ingesting open-source RSS feeds.
 
+by Ben Edelstein
+"""
 def main():
     init_db()
 
